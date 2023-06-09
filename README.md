@@ -9,4 +9,4 @@ Kypare should absolutely not be used in any type of production context.
 `cargo install --git https://github.com/davids-work/kypare.git`
 
 ## Usage
-By default `kypare` will serve files from the current working directory on https://localhost:8080. This behavior can be configured on the command line. Run `kypare --help` to see available options.
+By default `kypare` will serve files from the current working directory on https://localhost:8443. This behavior can be configured on the command line. Run `kypare --help` to see available options.

@@ -27,7 +27,7 @@ struct Opts {
     address: String,
 
     /// The port to serve on
-    #[arg(long, default_value_t = 8080)]
+    #[arg(long, default_value_t = 8443)]
     port: u16,
 
     /// The root directory to serve files from
