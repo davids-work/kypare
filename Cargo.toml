@@ -10,4 +10,6 @@ anyhow = "1.0.86"
 clap = { version = "4.5.16", features = ["derive"] }
 env_logger = "0.11.5"
 log = "0.4.22"
+rcgen = { version = "0.13.1", features = ["x509-parser", "crypto"] }
 rustls = "0.23.12"
+time = "0.3.36"
