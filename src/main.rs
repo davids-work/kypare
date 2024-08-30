@@ -2,17 +2,16 @@ use actix_files::Files;
 use actix_web::{middleware::Logger, App, HttpServer};
 use anyhow::{Context, Result};
 use clap::Parser;
-use rustls::{Certificate, PrivateKey};
+use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 
 const EC_KEY: &[u8] = include_bytes!("../cert/key.der");
 const CERTIFICATE: &[u8] = include_bytes!("../cert/cert.der");
 
 fn build_tls_config() -> Result<rustls::ServerConfig> {
-    let rustls_certificate = Certificate(CERTIFICATE.to_vec());
-    let rustls_privatekey = PrivateKey(EC_KEY.to_vec());
+    let rustls_certificate = CertificateDer::from_slice(CERTIFICATE);
+    let rustls_privatekey = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(EC_KEY));
 
     rustls::ServerConfig::builder()
-        .with_safe_defaults()
         .with_no_client_auth()
         .with_single_cert(vec![rustls_certificate], rustls_privatekey)
         .context("Failed to build TLS configuration")
@@ -56,7 +55,7 @@ async fn main() -> Result<()> {
             .wrap(Logger::default())
             .service(Files::new("/", &opts.files_root).show_files_listing())
     })
-    .bind_rustls((opts.address.as_ref(), opts.port), config)
+    .bind_rustls_0_23((opts.address.as_ref(), opts.port), config)
     .context(format!("Failed to bind to {}:{}", opts.address, opts.port))?
     .run()
     .await
