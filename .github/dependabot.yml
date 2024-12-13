@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: /
+    schedule:
+      interval: "daily"
+    groups:
+      dependencies:
+        update-types:
+          - "minor"
+          - "patch"
+      dependencies-major:
+        update-types:
+          - "major"
