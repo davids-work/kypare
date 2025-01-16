@@ -98,9 +98,11 @@ async fn main() -> Result<()> {
     );
 
     HttpServer::new(move || {
-        App::new()
-            .wrap(Logger::default())
-            .service(Files::new("/", &opts.files_root).show_files_listing())
+        App::new().wrap(Logger::default()).service(
+            Files::new("/", &opts.files_root)
+                .index_file("index.html")
+                .show_files_listing(),
+        )
     })
     .bind_rustls_0_23((opts.address.as_ref(), opts.port), config)
     .context(format!("Failed to bind to {}:{}", opts.address, opts.port))?
