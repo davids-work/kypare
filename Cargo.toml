@@ -11,5 +11,5 @@ clap = { version = "4.5.28", features = ["derive"] }
 env_logger = "0.11.6"
 log = "0.4.25"
 rcgen = { version = "0.13.2", features = ["x509-parser", "crypto"] }
-rustls = "0.23.22"
+rustls = "0.23.23"
 time = "0.3.36"
