@@ -177,7 +177,11 @@ struct Opts {
 #[actix_web::main]
 async fn main() -> Result<()> {
     let opts = Opts::parse();
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    env_logger::Builder::from_env(
+        Env::default()
+            .default_filter_or("info,actix_server::builder=warn,actix_server::server=warn"),
+    )
+    .init();
 
     let Some(project_dirs) = ProjectDirs::from("", "", "kypare") else {
         bail!("Failed to determine home directory");
