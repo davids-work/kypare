@@ -1,23 +1,116 @@
+use std::{
+    fs::{self, create_dir_all, OpenOptions},
+    io::Write,
+    path::Path,
+};
+
 use actix_files::Files;
 use actix_web::{middleware::Logger, App, HttpServer};
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::Parser;
+use directories::ProjectDirs;
+use env_logger::Env;
 use rcgen::{
-    Certificate, CertificateParams, DnType, ExtendedKeyUsagePurpose, KeyPair, KeyUsagePurpose,
+    Certificate, CertificateParams, DnType, ExtendedKeyUsagePurpose, IsCa, KeyPair, KeyUsagePurpose,
 };
-use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
+use rustls::pki_types::PrivateKeyDer;
 use time::{Duration, OffsetDateTime};
 
-const CA_KEY_DER: &[u8] = include_bytes!("../cert/ca-key.der");
-const CA_CERTIFICATE_DER: &[u8] = include_bytes!("../cert/ca-cert.der");
+fn write_ca_certificate(certificate: &Certificate, path: &Path) -> Result<()> {
+    fs::write(path, certificate.pem())
+        .with_context(|| format!("Failed to write CA certificate to {}", path.display()))
+}
 
-fn build_tls_config() -> Result<rustls::ServerConfig> {
-    let ca_private_key = PrivatePkcs8KeyDer::from(CA_KEY_DER);
-    let ca_keypair = KeyPair::try_from(&ca_private_key)?;
-    let ca_certificate_params =
-        CertificateParams::from_ca_cert_der(&CertificateDer::from(CA_CERTIFICATE_DER))?;
+fn write_ca_keypair(keypair: &KeyPair, path: &Path) -> Result<()> {
+    let mut open_options = OpenOptions::new();
+    open_options.write(true).create(true);
 
-    let ca_certificate = ca_certificate_params.self_signed(&ca_keypair)?;
+    #[cfg(target_family = "unix")]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        open_options.mode(0o600);
+    }
+
+    // TODO: Add security descriptors for Windows which is a lot more complicated
+
+    let mut file = open_options.open(path)?;
+    file.write_all(keypair.serialize_pem().as_bytes())
+        .with_context(|| format!("Failed to write CA key to {}", path.display()))
+}
+
+fn load_ca_certificate(
+    ca_certificate_path: &Path,
+    ca_keypair_path: &Path,
+) -> Result<(Certificate, KeyPair)> {
+    log::debug!("Loading CA key from {}", ca_keypair_path.display());
+    let key_data = fs::read_to_string(ca_keypair_path)?;
+    let keypair = KeyPair::from_pem(&key_data)?;
+
+    log::info!(
+        "Loading CA certificate from {}",
+        ca_certificate_path.display()
+    );
+    let certificate_data = fs::read_to_string(ca_certificate_path)?;
+    let certificate_params = CertificateParams::from_ca_cert_pem(&certificate_data)?;
+    let certificate = certificate_params.self_signed(&keypair)?;
+    Ok((certificate, keypair))
+}
+
+fn generate_ca_certificate() -> Result<(Certificate, KeyPair)> {
+    let mut certificate_params = CertificateParams::new(vec![]).unwrap();
+    certificate_params
+        .distinguished_name
+        .push(DnType::CommonName, "Kypare");
+    certificate_params.is_ca = IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
+    certificate_params
+        .distinguished_name
+        .push(DnType::OrganizationName, "Kypare CA");
+    certificate_params
+        .key_usages
+        .push(KeyUsagePurpose::DigitalSignature);
+    certificate_params
+        .key_usages
+        .push(KeyUsagePurpose::KeyCertSign);
+
+    let yesterday = OffsetDateTime::now_utc()
+        .checked_sub(Duration::DAY)
+        .unwrap();
+    let in_five_years = OffsetDateTime::now_utc()
+        .checked_add(Duration::DAY * 365 * 5)
+        .unwrap();
+    certificate_params.not_before = yesterday;
+    certificate_params.not_after = in_five_years;
+
+    let keypair = KeyPair::generate()?;
+
+    Ok((certificate_params.self_signed(&keypair)?, keypair))
+}
+
+fn load_or_generate_ca_certificate(ca_certificate_dir: &Path) -> Result<(Certificate, KeyPair)> {
+    let ca_certificate_path = ca_certificate_dir.join("cert.pem");
+    let ca_keypair_path = ca_certificate_dir.join("key.pem");
+
+    if ca_certificate_path.exists() && ca_keypair_path.exists() {
+        load_ca_certificate(&ca_certificate_path, &ca_keypair_path)
+    } else {
+        log::info!(
+            "No CA certificate found in {}, generating...",
+            ca_certificate_dir.display()
+        );
+        let (ca_certificate, ca_keypair) = generate_ca_certificate()?;
+        write_ca_certificate(&ca_certificate, &ca_certificate_path)?;
+        write_ca_keypair(&ca_keypair, &ca_keypair_path)?;
+
+        log::info!(
+            "Wrote CA certificate to {}. Import it to your browser as a trusted root",
+            ca_certificate_path.display()
+        );
+        Ok((ca_certificate, ca_keypair))
+    }
+}
+
+fn build_tls_config(ca_certificate_dir: &Path) -> Result<rustls::ServerConfig> {
+    let (ca_certificate, ca_keypair) = load_or_generate_ca_certificate(ca_certificate_dir)?;
 
     let (server_certificate, server_keypair) = generate_certificate(&ca_certificate, &ca_keypair)?;
 
@@ -84,12 +177,16 @@ struct Opts {
 #[actix_web::main]
 async fn main() -> Result<()> {
     let opts = Opts::parse();
-    env_logger::init_from_env(
-        // rustls logs TLS alerts on warning or even error level...
-        env_logger::Env::default().default_filter_or("info,rustls::conn=off"),
-    );
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
-    let config = build_tls_config()?;
+    let Some(project_dirs) = ProjectDirs::from("", "", "kypare") else {
+        bail!("Failed to determine home directory");
+    };
+    let data_dir = project_dirs.data_dir();
+    create_dir_all(data_dir)
+        .with_context(|| format!("Failed to create data directory {}", data_dir.display()))?;
+
+    let config = build_tls_config(data_dir)?;
 
     log::info!(
         "Starting HTTPS server at https://{}:{}",
