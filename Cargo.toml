@@ -12,5 +12,5 @@ directories = "6.0.0"
 env_logger = "0.11.6"
 log = "0.4.27"
 rcgen = { version = "0.13.2", features = ["x509-parser", "crypto", "pem"] }
-rustls = "0.23.25"
+rustls = "0.23.26"
 time = "0.3.41"
