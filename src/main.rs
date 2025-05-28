@@ -117,7 +117,10 @@ fn build_tls_config(ca_certificate_dir: &Path) -> Result<rustls::ServerConfig> {
     rustls::ServerConfig::builder()
         .with_no_client_auth()
         .with_single_cert(
-            vec![server_certificate.der().to_owned()],
+            vec![
+                server_certificate.der().to_owned(),
+                ca_certificate.der().to_owned(),
+            ],
             PrivateKeyDer::Pkcs8(server_keypair.serialize_der().into()),
         )
         .context("Failed to build TLS configuration")
