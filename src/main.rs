@@ -11,9 +11,11 @@ use clap::Parser;
 use directories::ProjectDirs;
 use env_logger::Env;
 use rcgen::{
-    Certificate, CertificateParams, DnType, ExtendedKeyUsagePurpose, IsCa, KeyPair, KeyUsagePurpose,
+    Certificate, CertificateParams, DnType, ExtendedKeyUsagePurpose, IsCa, Issuer, KeyPair,
+    KeyUsagePurpose,
 };
 use rustls::pki_types::PrivateKeyDer;
+use rustls_pki_types::{pem::PemObject, CertificateDer};
 use time::{Duration, OffsetDateTime};
 
 fn write_ca_certificate(certificate: &Certificate, path: &Path) -> Result<()> {
@@ -41,7 +43,7 @@ fn write_ca_keypair(keypair: &KeyPair, path: &Path) -> Result<()> {
 fn load_ca_certificate(
     ca_certificate_path: &Path,
     ca_keypair_path: &Path,
-) -> Result<(Certificate, KeyPair)> {
+) -> Result<(CertificateDer<'static>, Issuer<'static, KeyPair>)> {
     log::debug!("Loading CA key from {}", ca_keypair_path.display());
     let key_data = fs::read_to_string(ca_keypair_path)?;
     let keypair = KeyPair::from_pem(&key_data)?;
@@ -51,12 +53,12 @@ fn load_ca_certificate(
         ca_certificate_path.display()
     );
     let certificate_data = fs::read_to_string(ca_certificate_path)?;
-    let certificate_params = CertificateParams::from_ca_cert_pem(&certificate_data)?;
-    let certificate = certificate_params.self_signed(&keypair)?;
-    Ok((certificate, keypair))
+    let certificate = CertificateDer::from_pem_slice(certificate_data.as_bytes())?;
+    let issuer = Issuer::from_ca_cert_pem(&certificate_data, keypair)?;
+    Ok((certificate, issuer))
 }
 
-fn generate_ca_certificate() -> Result<(Certificate, KeyPair)> {
+fn generate_ca_certificate() -> Result<(Certificate, Issuer<'static, KeyPair>)> {
     let mut certificate_params = CertificateParams::new(vec![]).unwrap();
     certificate_params
         .distinguished_name
@@ -83,10 +85,15 @@ fn generate_ca_certificate() -> Result<(Certificate, KeyPair)> {
 
     let keypair = KeyPair::generate()?;
 
-    Ok((certificate_params.self_signed(&keypair)?, keypair))
+    Ok((
+        certificate_params.self_signed(&keypair)?,
+        Issuer::new(certificate_params, keypair),
+    ))
 }
 
-fn load_or_generate_ca_certificate(ca_certificate_dir: &Path) -> Result<(Certificate, KeyPair)> {
+fn load_or_generate_ca_certificate(
+    ca_certificate_dir: &Path,
+) -> Result<(CertificateDer<'static>, Issuer<'static, KeyPair>)> {
     let ca_certificate_path = ca_certificate_dir.join("cert.pem");
     let ca_keypair_path = ca_certificate_dir.join("key.pem");
 
@@ -97,39 +104,37 @@ fn load_or_generate_ca_certificate(ca_certificate_dir: &Path) -> Result<(Certifi
             "No CA certificate found in {}, generating...",
             ca_certificate_dir.display()
         );
-        let (ca_certificate, ca_keypair) = generate_ca_certificate()?;
+        let (ca_certificate, issuer) = generate_ca_certificate()?;
         write_ca_certificate(&ca_certificate, &ca_certificate_path)?;
-        write_ca_keypair(&ca_keypair, &ca_keypair_path)?;
+        write_ca_keypair(issuer.key(), &ca_keypair_path)?;
 
         log::info!(
             "Wrote CA certificate to {}. Import it to your browser as a trusted root",
             ca_certificate_path.display()
         );
-        Ok((ca_certificate, ca_keypair))
+
+        Ok((ca_certificate.der().to_owned(), issuer))
     }
 }
 
 fn build_tls_config(ca_certificate_dir: &Path) -> Result<rustls::ServerConfig> {
-    let (ca_certificate, ca_keypair) = load_or_generate_ca_certificate(ca_certificate_dir)?;
+    let (ca_certificate, issuer) = load_or_generate_ca_certificate(ca_certificate_dir)?;
 
-    let (server_certificate, server_keypair) = generate_certificate(&ca_certificate, &ca_keypair)?;
+    let (server_certificate, server_keypair) = generate_certificate(&issuer)?;
 
     rustls::ServerConfig::builder()
         .with_no_client_auth()
         .with_single_cert(
             vec![
                 server_certificate.der().to_owned(),
-                ca_certificate.der().to_owned(),
+                ca_certificate.into_owned(),
             ],
             PrivateKeyDer::Pkcs8(server_keypair.serialize_der().into()),
         )
         .context("Failed to build TLS configuration")
 }
 
-fn generate_certificate(
-    ca_certificate: &Certificate,
-    ca_keypair: &KeyPair,
-) -> Result<(Certificate, KeyPair)> {
+fn generate_certificate(issuer: &Issuer<'static, KeyPair>) -> Result<(Certificate, KeyPair)> {
     let mut certificate_params =
         CertificateParams::new(vec!["localhost".into(), "127.0.0.1".into()]).unwrap();
     certificate_params
@@ -154,10 +159,7 @@ fn generate_certificate(
 
     let keypair = KeyPair::generate()?;
 
-    Ok((
-        certificate_params.signed_by(&keypair, ca_certificate, ca_keypair)?,
-        keypair,
-    ))
+    Ok((certificate_params.signed_by(&keypair, issuer)?, keypair))
 }
 
 #[derive(clap::Parser)]
