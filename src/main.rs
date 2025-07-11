@@ -11,8 +11,8 @@ use clap::Parser;
 use directories::ProjectDirs;
 use env_logger::Env;
 use rcgen::{
-    Certificate, CertificateParams, DnType, ExtendedKeyUsagePurpose, IsCa, Issuer, KeyPair,
-    KeyUsagePurpose,
+    Certificate, CertificateParams, CertifiedIssuer, DnType, ExtendedKeyUsagePurpose, IsCa, Issuer,
+    KeyPair, KeyUsagePurpose,
 };
 use rustls::pki_types::PrivateKeyDer;
 use rustls_pki_types::{pem::PemObject, CertificateDer};
@@ -58,7 +58,7 @@ fn load_ca_certificate(
     Ok((certificate, issuer))
 }
 
-fn generate_ca_certificate() -> Result<(Certificate, Issuer<'static, KeyPair>)> {
+fn generate_ca_certificate() -> Result<CertifiedIssuer<'static, KeyPair>> {
     let mut certificate_params = CertificateParams::new(vec![]).unwrap();
     certificate_params
         .distinguished_name
@@ -85,10 +85,7 @@ fn generate_ca_certificate() -> Result<(Certificate, Issuer<'static, KeyPair>)> 
 
     let keypair = KeyPair::generate()?;
 
-    Ok((
-        certificate_params.self_signed(&keypair)?,
-        Issuer::new(certificate_params, keypair),
-    ))
+    Ok(CertifiedIssuer::self_signed(certificate_params, keypair)?)
 }
 
 fn load_or_generate_ca_certificate(
@@ -104,16 +101,17 @@ fn load_or_generate_ca_certificate(
             "No CA certificate found in {}, generating...",
             ca_certificate_dir.display()
         );
-        let (ca_certificate, issuer) = generate_ca_certificate()?;
-        write_ca_certificate(&ca_certificate, &ca_certificate_path)?;
-        write_ca_keypair(issuer.key(), &ca_keypair_path)?;
+        let ca_certificate = generate_ca_certificate()?;
+        write_ca_certificate(ca_certificate.as_ref(), &ca_certificate_path)?;
+        write_ca_keypair(ca_certificate.key(), &ca_keypair_path)?;
 
         log::info!(
             "Wrote CA certificate to {}. Import it to your browser as a trusted root",
             ca_certificate_path.display()
         );
+        let (issuer, certificate) = ca_certificate.into_issuer_and_certificate();
 
-        Ok((ca_certificate.der().to_owned(), issuer))
+        Ok((certificate.der().to_owned(), issuer))
     }
 }
 
