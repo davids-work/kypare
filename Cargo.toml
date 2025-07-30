@@ -7,11 +7,11 @@ edition = "2021"
 actix-files = "0.6.6"
 actix-web = { version = "4.11.0", features = ["rustls-0_23"] }
 anyhow = "1.0.98"
-clap = { version = "4.5.41", features = ["derive"] }
+clap = { version = "4.5.42", features = ["derive"] }
 directories = "6.0.0"
 env_logger = "0.11.6"
 log = "0.4.27"
-rcgen = { version = "0.14.2", features = ["x509-parser", "crypto", "pem"] }
-rustls = "0.23.29"
+rcgen = { version = "0.14.3", features = ["x509-parser", "crypto", "pem"] }
+rustls = "0.23.31"
 rustls-pki-types = "1.12.0"
 time = "0.3.41"
