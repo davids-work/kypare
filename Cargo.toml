@@ -14,4 +14,4 @@ log = "0.4.27"
 rcgen = { version = "0.14.3", features = ["x509-parser", "crypto", "pem"] }
 rustls = "0.23.31"
 rustls-pki-types = "1.12.0"
-time = "0.3.42"
+time = "0.3.43"
