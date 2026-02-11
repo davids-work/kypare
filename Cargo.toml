@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 actix-files = "0.6.10"
 actix-web = { version = "4.12.1", features = ["rustls-0_23"] }
-anyhow = "1.0.100"
+anyhow = "1.0.101"
 clap = { version = "4.5.57", features = ["derive"] }
 directories = "6.0.0"
 env_logger = "0.11.6"
@@ -14,4 +14,4 @@ log = "0.4.29"
 rcgen = { version = "0.14.7", features = ["x509-parser", "crypto", "pem"] }
 rustls = "0.23.36"
 rustls-pki-types = "1.14.0"
-time = "0.3.46"
+time = "0.3.47"
