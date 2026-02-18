@@ -44,9 +44,9 @@ dependencies = [
 
 [[package]]
 name = "actix-http"
-version = "3.11.2"
+version = "3.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7926860314cbe2fb5d1f13731e387ab43bd32bca224e82e6e2db85de0a3dba49"
+checksum = "f860ee6746d0c5b682147b2f7f8ef036d4f92fe518251a3a35ffa3650eafdf0e"
 dependencies = [
  "actix-codec",
  "actix-rt",
@@ -94,9 +94,9 @@ dependencies = [
 
 [[package]]
 name = "actix-router"
-version = "0.5.3"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13d324164c51f63867b57e73ba5936ea151b8a41a1d23d1031eeb9f70d0236f8"
+checksum = "14f8c75c51892f18d9c46150c5ac7beb81c95f78c8b83a634d49f4ca32551fe7"
 dependencies = [
  "bytestring",
  "cfg-if",
@@ -176,9 +176,9 @@ dependencies = [
 
 [[package]]
 name = "actix-web"
-version = "4.12.1"
+version = "4.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1654a77ba142e37f049637a3e5685f864514af11fcbc51cb51eb6596afe5b8d6"
+checksum = "ff87453bc3b56e9b2b23c1cc0b1be8797184accf51d2abe0f8a33ec275d316bf"
 dependencies = [
  "actix-codec",
  "actix-http",
@@ -530,9 +530,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.58"
+version = "4.5.59"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "63be97961acde393029492ce0be7a1af7e323e6bae9511ebfac33751be5e6806"
+checksum = "c5caf74d17c3aec5495110c34cc3f78644bfa89af6c8993ed4de2790e49b6499"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -540,9 +540,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.58"
+version = "4.5.59"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f13174bda5dfd69d7e947827e5af4b0f2f94a4a3ee92912fba07a66150f21e2"
+checksum = "370daa45065b80218950227371916a1633217ae42b2715b2287b606dcd618e24"
 dependencies = [
  "anstream",
  "anstyle",
