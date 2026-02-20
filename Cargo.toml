@@ -6,8 +6,8 @@ edition = "2021"
 [dependencies]
 actix-files = "0.6.10"
 actix-web = { version = "4.13.0", features = ["rustls-0_23"] }
-anyhow = "1.0.101"
-clap = { version = "4.5.59", features = ["derive"] }
+anyhow = "1.0.102"
+clap = { version = "4.5.60", features = ["derive"] }
 directories = "6.0.0"
 env_logger = "0.11.6"
 log = "0.4.29"
